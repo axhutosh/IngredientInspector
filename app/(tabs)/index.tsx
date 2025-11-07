@@ -1,98 +1,159 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+// 1. Import Ionicons for the logo
+import { Ionicons } from '@expo/vector-icons';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
 
-export default function HomeScreen() {
+export default function ScannerScreen() {
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const handleBarCodeScanned = async ({ data }: { data: string }) => {
+    setScanned(true);
+    setIsLoading(true);
+    console.log(`Fetching data for barcode: ${data}`);
+
+    try {
+      const response = await fetch(
+        `https://world.openfoodfacts.org/api/v2/product/${data}.json`
+      );
+      const json = await response.json();
+
+      if (json.status === 1 && json.product) {
+        const product = json.product;
+        router.push({
+          pathname: '/results',
+          params: {
+            productName: product.product_name || 'Name not found',
+            imageUrl: product.image_front_url || '',
+            novaScore: product.nova_group || 'N/A',
+            ingredients: product.ingredients_text || 'No ingredients listed.',
+          },
+        });
+      } else {
+        alert('Product not found. Try a different item.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('An error occurred while fetching data.');
+    }
+
+    setIsLoading(false);
+  };
+
+  if (!permission) {
+    return (
+      <ThemedView style={styles.container}>
+        <ThemedText>Requesting for camera permission...</ThemedText>
+      </ThemedView>
+    );
+  }
+
+  if (!permission.granted) {
+    return (
+      <ThemedView style={styles.container}>
+        <ThemedText style={styles.title}>No access to camera</ThemedText>
+        <Pressable style={styles.button} onPress={requestPermission}>
+          <ThemedText style={styles.buttonText}>Grant Permission</ThemedText>
+        </Pressable>
+      </ThemedView>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <ThemedView style={styles.container}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <ThemedText style={styles.subtitle}>Fetching product data...</ThemedText>
+      </ThemedView>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
+    <ThemedView style={styles.container}>
+      {/* 2. NEW HEADER SECTION */}
+      <ThemedView style={styles.header}>
+        <Ionicons name="scan-circle-outline" size={40} color="#007AFF" />
+        <ThemedText style={styles.appName}>Ingredient Inspector</ThemedText>
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
+      <ThemedText style={styles.subtitle}>
+        Scan a barcode to see what&apos;s inside.
+      </ThemedText>
+
+      <ThemedView style={styles.cameraContainer}>
+        <CameraView
+          style={StyleSheet.absoluteFillObject}
+          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ['ean13', 'upc_a', 'qr'],
+          }}
+        />
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+
+      {scanned && (
+        <Pressable style={styles.button} onPress={() => setScanned(false)}>
+          <ThemedText style={styles.buttonText}>Tap to Scan Again</ThemedText>
+        </Pressable>
+      )}
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    padding: 20,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  // 3. NEW STYLES FOR HEADER
+  header: {
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  appName: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginTop: 8,
+    color: '#007AFF', // Matches our button color
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  subtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 30,
+    opacity: 0.8,
+  },
+  cameraContainer: {
+    width: '100%',
+    aspectRatio: 1,
+    overflow: 'hidden',
+    borderRadius: 20, // Slightly rounder corners
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 12,
+    justifyContent: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

@@ -1,33 +1,44 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+// Simple standard colors for the tabs
+const ACTIVE_COLOR = '#007AFF';
+const INACTIVE_COLOR = '#8E8E93';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        // Use our standard colors
+        tabBarActiveTintColor: ACTIVE_COLOR,
+        tabBarInactiveTintColor: INACTIVE_COLOR,
+        // Hide the top header on all tabs
         headerShown: false,
-        tabBarButton: HapticTab,
+        // Standard tab bar style
+        tabBarStyle: {
+          backgroundColor: '#1C1C1E', // Dark mode background
+          borderTopColor: '#38383A',
+        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Scanner',
+          // Using Ionicons directly
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'camera' : 'camera-outline'} size={28} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="watchlist"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Watchlist',
+          // Using Ionicons directly
+          tabBarIcon: ({ color, focused }) => (
+             <Ionicons name={focused ? 'list' : 'list-outline'} size={28} color={color} />
+          ),
         }}
       />
     </Tabs>
